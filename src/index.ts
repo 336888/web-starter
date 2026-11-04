@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import { logger, timer } from './lib/logger.js';
 import healthRoutes from './routes/health.js';
+import exampleRoutes from './api/example.js';
 
 // 注意 import 带 .js 后缀：NodeNext 模块解析要求
 const app = Fastify({ loggerInstance: logger });
@@ -25,6 +26,7 @@ app.addHook('onResponse', async (req, reply) => {
 });
 
 await app.register(healthRoutes);
+await app.register(exampleRoutes);
 
 // 优雅退出
 // docker compose down 默认只给 10 秒，不处理 SIGTERM 的话
