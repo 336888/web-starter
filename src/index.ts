@@ -1,15 +1,30 @@
 import Fastify from 'fastify';
+import { logger, timer } from './lib/logger.js';
+import healthRoutes from './routes/health.js';
 
-const app = Fastify({
-  logger: {
-    level: process.env.LOG_LEVEL ?? 'info',
-  },
+// 注意 import 带 .js 后缀：NodeNext 模块解析要求
+const app = Fastify({ loggerInstance: logger });
+
+// 每个请求记一条，带耗时，方便和 nginx 的 urt 对照
+const elapsed = new WeakMap<object, () => number>();
+
+app.addHook('onRequest', async (req) => {
+  elapsed.set(req, timer());
 });
 
-app.get('/health', async () => ({
-  ok: true,
-  uptime: Math.round(process.uptime()),
-}));
+app.addHook('onResponse', async (req, reply) => {
+  app.log.info(
+    {
+      method: req.method,
+      url: req.url,
+      status: reply.statusCode,
+      ms: Math.round(elapsed.get(req)?.() ?? 0),
+    },
+    'request',
+  );
+});
+
+await app.register(healthRoutes);
 
 // 优雅退出
 // docker compose down 默认只给 10 秒，不处理 SIGTERM 的话
